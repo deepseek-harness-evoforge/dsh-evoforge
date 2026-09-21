@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Support staged conversation-draft preparation: persist four fixed tasks, calibrate each separately, then call the
+  isolated proposer. Count every request; explicitly targeted transport recovery inherits completed material without
+  redrawing it. Preserve legacy attempts and remove the development-only 20-call ceiling on configurable draft policies.
+
 - Connect independently evaluated ordinary-conversation Skills to the existing future-Session Generation and exact
   rollback system through explicit human confirmation. Reject literal-only results, changed baselines, withdrawn sources
   and incomplete improvement/retention evidence; preserve all current Sessions and historical experiments.
@@ -22,7 +26,7 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 - Let native model adapters judge transport liveness instead of aborting drafts after one minute without content. Keep
   a ten-minute total deadline and cancellation, record response timing without raw content, and allow each explicitly
-  targeted pre-governance transport recovery while preserving the full failure chain and sealed-test boundaries.
+  targeted transport recovery while preserving the full failure chain and sealed-test boundaries.
 
 - Allow current negative answer feedback with a note from explicitly authorized native Sessions to enter the existing
   isolated draft and trial pipeline without an extra classifier call. Share budgets, preserve edits/deletions and
@@ -57,9 +61,6 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 - Add optional one-shot native comparisons for sealed conversation drafts, with durable budgets, isolated test Sessions,
   actual Skill-load evidence and read-only results. Equal outcomes, regressions and inconclusive comparisons remain explicit;
   these limited model-proposed checks do not activate Skills or establish general improvement.
-
-- Allow one explicitly authorized, expiring diagnostic retry for an early uncertain draft request. Keep the original
-  failure and both budget reservations; sealed test material, successful drafts and retries cannot be retried again.
 
 - Explain incomplete Skill drafts with redacted failure categories and retain available model usage on failures;
   unknown causes and missing usage remain explicit, and incomplete requests are not automatically retried.

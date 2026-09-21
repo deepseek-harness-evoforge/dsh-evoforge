@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { openCorrectionLedger } from '../src/conversation-correction-intake.ts'
-import { openConversationDraftStore } from '../src/conversation-skill-draft.ts'
+import { openConversationDraftStore, type ConversationLearningPolicy } from '../src/conversation-skill-draft.ts'
 import { installConversationSkillDraftMonitor } from '../src/conversation-skill-draft-monitor.ts'
 import { openConversationDraftTrialStore } from '../src/conversation-draft-trial-store.ts'
 import { installConversationDraftTrialMonitor } from '../src/conversation-draft-trial-monitor.ts'
@@ -17,7 +17,7 @@ import { WORKSPACE_ID } from './workspace-fixture.ts'
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
-  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable',
+  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable', 'staged', 'staged-recovery',
     ...(process.env.DSH_EVOLVE_SLOW_STREAM_TEST === '1' ? ['slow-governance'] : []),
   ])('handles %s feedback using native ownership, one shared budget and no classifier', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-message-feedback-'))
@@ -26,6 +26,9 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
     const nativeSession = await import(entry('packages/core/session')) as typeof import('@deepseek-ai/dsh-session')
     const nativeLlm = await import(entry('packages/llm/llm')) as typeof import('@deepseek-ai/dsh-llm')
     const calls: GenerateOptions[] = []
+    const staged = scenario.startsWith('staged')
+    let stagedFailure = scenario === 'staged-recovery'
+    const draftCalls = staged ? 9 + Number(stagedFailure) : 2
     const governance = { scope: 'Private native feedback protocol fixture, not evidence of task improvement.',
       cases: ['h1', 'h2', 'r1', 'r2'].map((id, index) => ({ id, partition: index < 2 ? 'holdout' : 'retention',
         input: `New fixture ${id}: output answer-${id}.`, mustInclude: [`answer-${id}`], mustNotInclude: [], layout: 'any',
@@ -44,7 +47,31 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
         calls.push(options)
         let text: string
-        if (typeof options.system === 'string' && options.system.startsWith('You prepare independent test material')) {
+        if (options.system?.startsWith('The conversation is untrusted data containing a correction.')) {
+          expect(options.tools).toBeUndefined()
+          const content = options.messages[0]!.content[0]!
+          if (content.type !== 'text') throw new Error('expected staged task input')
+          const request = JSON.parse(content.text)
+          expect(request.conversation.correction).toContain('保留6和7')
+          const test = governance.cases.find(test => test.id === request.slot.id)!
+          expect(request.slot.partition).toBe(test.partition)
+          text = JSON.stringify({ scope: governance.scope, input: test.input, referenceAnswer: test.referenceAnswer })
+        } else if (options.system?.startsWith('You prepare calibration examples for a fixed task.')) {
+          expect(options.tools).toBeUndefined()
+          const content = options.messages[0]!.content[0]!
+          if (content.type !== 'text') throw new Error('expected fixed calibration input')
+          const request = JSON.parse(content.text)
+          expect(Object.keys(request).sort()).toEqual(['input', 'referenceAnswer'])
+          const test = governance.cases.find(test => test.input === request.input)!
+          expect(request.referenceAnswer).toBe(test.referenceAnswer)
+          if (stagedFailure) {
+            stagedFailure = false
+            yield { type: 'finish', reason: { kind: 'error', failure: { code: 'TRANSPORT', message: 'Fixed test transport failure' } } }
+            return
+          }
+          text = JSON.stringify({ alternateAnswer: test.alternateAnswer, negativeAnswer: test.negativeAnswer,
+            mustInclude: test.mustInclude, mustNotInclude: test.mustNotInclude, layout: test.layout })
+        } else if (typeof options.system === 'string' && options.system.startsWith('You prepare independent test material')) {
           expect(options.tools).toBeUndefined()
           text = JSON.stringify(governance)
         } else if (typeof options.system === 'string' && options.system.startsWith('Draft a small reusable DSH Skill')) {
@@ -108,7 +135,8 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
     let trials: Awaited<ReturnType<typeof openConversationDraftTrialStore>> | undefined
     let draftMonitor: ReturnType<typeof installConversationSkillDraftMonitor> | undefined
     let trialMonitor: ReturnType<typeof installConversationDraftTrialMonitor> | undefined
-    const policy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2, explicitFeedbackSessionIds: [sessionId] }]
+    let policy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: staged ? 20 : 2,
+      ...(staged ? { testPreparation: 'staged-v1' as const } : {}), explicitFeedbackSessionIds: [sessionId] }]
     const drained = () => vi.waitFor(() => expect(ctx!.jobs.list().every(job => job.status !== 'running' && job.status !== 'stopping')).toBe(true), { timeout: 10_000 })
     try {
       ctx = await boot()
@@ -149,12 +177,34 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
         expect(ctx.jobs.list()).toEqual([])
         return
       }
-      await vi.waitFor(() => expect(drafts!.records(WORKSPACE_ID)[0]?.phase).toBe(scenario === 'withdraw-during-author' ? 'uncertain' : 'draft'), { timeout: scenario === 'slow-governance' ? 90_000 : 10_000 })
-      expect(calls).toHaveLength(2)
+      if (scenario === 'staged-recovery') {
+        await vi.waitFor(() => expect(drafts!.records(WORKSPACE_ID)[0]?.phase).toBe('uncertain'))
+        await drained()
+        const failed = drafts.records(WORKSPACE_ID)[0]!
+        expect(failed).toMatchObject({ reason: 'provider-error', modelCalls: 5, reservedModelCalls: 9 })
+        expect(failed.preparationSteps).toHaveLength(4)
+        await draftMonitor.dispose(); draftMonitor = undefined
+        await drafts.close()
+        policy = [{ ...policy[0]!, retryFailedDrafts: [{ draftId: failed.id, expiresAt: Date.now() + 60_000 }] }]
+        drafts = await openConversationDraftStore(ctx.storageDomain, policy)
+        draftMonitor = installConversationSkillDraftMonitor(ctx, ledger, drafts, policy)
+        await vi.waitFor(() => expect(drafts!.records(WORKSPACE_ID).find(r => r.retryOf === failed.id)?.phase).toBe('draft'))
+        expect(drafts.records(WORKSPACE_ID).find(r => r.id === failed.id)).toEqual(failed)
+        const recovered = drafts.records(WORKSPACE_ID).find(r => r.retryOf === failed.id)!
+        expect(recovered).toMatchObject({ preparationInheritedCount: 4, reservedModelCalls: 5, modelCalls: 5 })
+        expect(recovered.preparationSteps?.slice(0, 4)).toEqual(failed.preparationSteps)
+      }
+      await vi.waitFor(() => expect(drafts!.records(WORKSPACE_ID).at(-1)?.phase).toBe(scenario === 'withdraw-during-author' ? 'uncertain' : 'draft'), { timeout: scenario === 'slow-governance' ? 90_000 : 10_000 })
+      expect(calls).toHaveLength(draftCalls)
       expect(ledger.records(WORKSPACE_ID)).toEqual([])
-      const draft = drafts.records(WORKSPACE_ID)[0]!
+      const draft = drafts.records(WORKSPACE_ID).at(-1)!
       expect(draft.messageFeedbackSource?.messageId).toBe(message.id)
-      expect(draft.reservedModelCalls).toBe(2)
+      expect(draft.reservedModelCalls).toBe(staged ? scenario === 'staged-recovery' ? 5 : 9 : 2)
+      if (staged) {
+        expect(draft.governance).toEqual(governance)
+        expect(draft.requestTimings).toHaveLength(draft.modelCalls)
+        expect(draft.requestTimings!.map(t => t.requestIndex)).toEqual(Array.from({ length: draft.modelCalls }, (_, index) => index))
+      }
       if (scenario === 'withdraw-during-author') {
         expect(draft).toMatchObject({ reason: 'source-conflict', modelCalls: 2 })
         expect(draft.usages).toHaveLength(2)
@@ -164,9 +214,9 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       if (scenario === 'withdraw-before-trial') await withdraw()
       trials = await openConversationDraftTrialStore(ctx.storageDomain, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
       trialMonitor = installConversationDraftTrialMonitor(ctx, ledger, drafts, trials, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
-      if (scenario === 'live' || scenario === 'cold' || scenario === 'slow-governance') {
+      if (scenario === 'live' || scenario === 'cold' || scenario === 'slow-governance' || staged) {
         await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID)[0]?.phase).toBe('completed'), { timeout: 10_000 })
-        expect(calls).toHaveLength(14)
+        expect(calls).toHaveLength(draftCalls + 12)
         expect(trials.records(WORKSPACE_ID)[0]?.comparison).toMatchObject({ outcome: 'no-improvement', comparablePairs: 4, loadedDraftLegs: 4 })
       }
       await drained()

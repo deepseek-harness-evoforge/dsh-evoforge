@@ -241,7 +241,8 @@ export const Config: Schema<Config> = z.object({
   }, true).default([]),
   conversationLearningPolicies: z.transform(z.array(z.object({
     workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
-    maxModelCallsPerUtcDay: z.number().step(1).min(2).max(20).required(),
+    maxModelCallsPerUtcDay: z.number().step(1).min(2).max(Number.MAX_SAFE_INTEGER).required(),
+    testPreparation: z.const('staged-v1'),
     explicitFeedbackSessionIds: z.array(z.string()).max(10),
     retryFailedDrafts: z.array(z.object({
       draftId: z.string().pattern(/^[a-f0-9]{64}$/u).required(),

@@ -94,6 +94,11 @@ describe('dsh-evolve public configuration', () => {
       .toEqual([{ ...policy, retryFailedDrafts: [], explicitFeedbackSessionIds: ['session-one'] }])
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, explicitFeedbackSessionIds: ['session-one', 'session-one'] }] })).toThrow()
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, explicitFeedbackSessionIds: [''] }] })).toThrow()
+    expect(() => Config({ conversationLearningPolicies: [{ ...policy, testPreparation: 'staged-v1' }] })).toThrow('nine-call')
+    expect(Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: 9, testPreparation: 'staged-v1' }] }).conversationLearningPolicies)
+      .toEqual([{ ...policy, maxModelCallsPerUtcDay: 9, testPreparation: 'staged-v1', retryFailedDrafts: [], explicitFeedbackSessionIds: [] }])
+    expect(Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: 1000, testPreparation: 'staged-v1' }] }).conversationLearningPolicies?.[0]?.maxModelCallsPerUtcDay).toBe(1000)
+    expect(() => Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: Infinity }] })).toThrow()
   })
 
   it('keeps Routing retention independently bounded and default-deny', () => {

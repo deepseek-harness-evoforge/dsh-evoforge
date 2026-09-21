@@ -167,7 +167,7 @@ export class ConversationSkillRelease {
       if (origin === undefined || origin.id !== source.correctionId || digest(origin.source) !== source.sourceDigest) return false
       const reader = new DurableFeedbackAttribution(this.ctx.sessionPersistence, { lifecycle: this.ctx })
       const resolved = await resolveConversationDraftOrigin(this.ctx, reader, this.modules.corrections, origin)
-      if (this.closing || resolved?.cwd === undefined || draftInputDigest(resolved.input) !== source.inputDigest
+      if (this.closing || resolved?.cwd === undefined || draftInputDigest(resolved.input, source.testPreparation) !== source.inputDigest
         || resolved.input.route.provider !== trial.provider || resolved.input.route.model !== trial.model) return false
       const skills = await this.ctx.skills.list({ cwd: resolved.cwd })
       return !this.closing && !skills.some(skill => skill.name === source.draft!.name)

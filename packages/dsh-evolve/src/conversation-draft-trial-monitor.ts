@@ -139,7 +139,7 @@ export function installConversationDraftTrialMonitor(ctx: Context, corrections: 
               }
               const resolved = await resolveConversationDraftOrigin(ctx, reader, corrections, origin)
               controller.signal.throwIfAborted()
-              if (resolved === undefined || resolved.cwd === undefined || draftInputDigest(resolved.input) !== source.inputDigest) {
+              if (resolved === undefined || resolved.cwd === undefined || draftInputDigest(resolved.input, source.testPreparation) !== source.inputDigest) {
                 store.warn(workspaceId); incomplete = true; continue
               }
               const { input, cwd } = resolved

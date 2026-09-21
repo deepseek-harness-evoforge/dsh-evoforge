@@ -16,7 +16,7 @@ export function latestCorrectionChainEnds(records: readonly CorrectionRecord[]):
     .sort((a, b) => b.reservedAt - a.reservedAt || b.source.turn - a.source.turn || a.id.localeCompare(b.id))
 }
 
-/** Native Jobs own two isolated auxiliary roles. No Agent, Skill or current Session contribution is registered. */
+/** Native Jobs own isolated preparation and authoring. No current Session contribution is registered. */
 export function installConversationSkillDraftMonitor(ctx: Context, corrections: CorrectionLedger, store: ConversationDraftStore,
   policies: readonly ConversationLearningPolicy[], isEvaluationSession: (sessionId: string) => boolean = () => false): { dispose(): Promise<void> } {
   let closing = false, disposal: Promise<void> | undefined
@@ -37,7 +37,7 @@ export function installConversationSkillDraftMonitor(ctx: Context, corrections: 
     catch { store.warn(workspaceId); return }
     if (active.has(workspaceId)) { rescan.add(workspaceId); return }
     const summary = store.summarize(workspaceId)
-    if (!summary.enabled || !summary.observerAvailable || summary.reservedModelCallsToday + 2 > summary.maxModelCallsPerUtcDay) return
+    if (!summary.enabled || !summary.observerAvailable || summary.reservedModelCallsToday >= summary.maxModelCallsPerUtcDay) return
     const retryIds = new Set(store.policy(workspaceId)?.retryFailedDrafts?.map(grant => grant.draftId) ?? [])
     const retrySources = new Set(store.records(workspaceId).filter(r => retryIds.has(r.id)).map(r => r.correctionId))
     const recorded = corrections.records(workspaceId)
@@ -66,7 +66,7 @@ export function installConversationSkillDraftMonitor(ctx: Context, corrections: 
               controller.signal.throwIfAborted()
               if (isEvaluationSession(source.source.sessionId)) continue
               const current = store.summarize(workspaceId)
-              if (current.reservedModelCallsToday + 2 > current.maxModelCallsPerUtcDay) break
+              if (current.reservedModelCallsToday >= current.maxModelCallsPerUtcDay) break
               if (!store.canStart(source)) continue
               // Legacy drafts lack sourceAnswerSeq. Resolve it from their real correction record, not a new synthetic record.
               const duplicate = store.records(workspaceId).some(draft => draft.correctionId !== source.id

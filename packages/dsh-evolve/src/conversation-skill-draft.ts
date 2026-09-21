@@ -11,6 +11,10 @@ import { NATIVE_WORKSPACE_ID_PATTERN } from './workspace-identity.ts'
 import { conversationSourceAvailable, type ConversationSourceCheck } from './conversation-source-check.ts'
 import { draftOriginAnswerSeq, explicitFeedbackId, explicitFeedbackSourceSchema, isExplicitFeedbackOrigin,
   type ConversationDraftInput, type ConversationDraftOrigin } from './conversation-message-feedback.ts'
+import { governanceSchema, validateDraftGovernance, preparationStepsSchema, nextDraftPreparation, stagedDraftPrompt,
+  appendDraftPreparation, assembleDraftPreparation, STAGED_DRAFT_PREPARATION_DIGEST,
+  type ConversationDraftGovernance, type StagedDraftRequest } from './conversation-draft-preparation.ts'
+export { validateDraftGovernance, requireDraftCaseCalibration, matchesDraftCase, type ConversationDraftGovernance } from './conversation-draft-preparation.ts'
 
 const HASH = z.string().regex(/^[a-f0-9]{64}$/u)
 const INT = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -41,16 +45,19 @@ const authorSystem = [
 
 export interface ConversationLearningPolicy {
   readonly workspaceId: string
-  /** A run reserves two calls: hidden test preparation followed by a separate proposer. */
+  /** Full-run reservation; interrupted reservations are never reclaimed. */
   readonly maxModelCallsPerUtcDay: number
-  /** Explicit native Sessions whose current negative notes may enter the same two-call draft budget. */
+  /** Four task requests, four fixed-task calibrations, then the separate proposer. */
+  readonly testPreparation?: 'staged-v1'
+  /** Explicit native Sessions whose current negative notes may enter the shared draft budget. */
   readonly explicitFeedbackSessionIds?: string[]
-  /** One new attempt per explicitly named pre-governance failure, not a replay of its unknown result. */
+  /** One new attempt per exact transport failure. Staged attempts inherit, never redraw, completed material. */
   readonly retryFailedDrafts?: { readonly draftId: string; readonly expiresAt: number }[]
 }
 const policySchema = z.strictObject({
   workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
-  maxModelCallsPerUtcDay: z.number().int().min(2).max(20),
+  maxModelCallsPerUtcDay: z.number().int().min(2).max(Number.MAX_SAFE_INTEGER),
+  testPreparation: z.literal('staged-v1').optional(),
   explicitFeedbackSessionIds: z.array(z.string().min(1).max(256)).max(10).optional(),
   retryFailedDrafts: z.array(z.strictObject({ draftId: HASH, expiresAt: INT.positive().max(8_640_000_000_000_000) })).max(10).optional(),
 })
@@ -58,54 +65,11 @@ export function validateConversationLearningPolicies(policies: readonly Conversa
   z.array(policySchema).max(20).parse(policies)
   if (new Set(policies.map(p => p.workspaceId)).size !== policies.length) throw new Error('duplicate conversation learning Workspace')
   for (const policy of policies) {
+    if (policy.testPreparation === 'staged-v1' && policy.maxModelCallsPerUtcDay < 9) throw new Error('staged draft preparation needs a nine-call run reservation')
     const sessions = policy.explicitFeedbackSessionIds ?? []
     if (new Set(sessions).size !== sessions.length) throw new Error('duplicate explicit feedback Session')
     const grants = policy.retryFailedDrafts ?? []
     if (new Set(grants.map(g => g.draftId)).size !== grants.length) throw new Error('duplicate conversation draft retry grant')
-  }
-}
-
-const caseSchema = z.strictObject({
-  id: z.string().regex(/^[a-z0-9-]{1,64}$/u),
-  partition: z.enum(['holdout', 'retention']), input: z.string().min(8).max(4000),
-  mustInclude: z.array(z.string().min(1).max(256)).min(1).max(20),
-  mustNotInclude: z.array(z.string().min(1).max(256)).max(20),
-  layout: z.enum(['no-table', 'table', 'any']),
-  referenceAnswer: z.string().min(1).max(6000),
-  alternateAnswer: z.string().min(1).max(6000).optional(),
-  negativeAnswer: z.string().min(1).max(6000),
-})
-const governanceSchema = z.strictObject({ scope: z.string().min(8).max(1000), cases: z.array(caseSchema).length(4) })
-export type ConversationDraftGovernance = z.infer<typeof governanceSchema>
-
-/** Declarative calibration only. A model-written reference is not a real baseline or task result. */
-export function matchesDraftCase(answer: string, test: Pick<z.infer<typeof caseSchema>, 'mustInclude' | 'mustNotInclude' | 'layout'>): boolean {
-  const table = /^\s*\|?\s*:?-{3,}:?\s*\|(?:\s*:?-{3,}:?\s*\|?)+\s*$/mu.test(answer)
-  return test.mustInclude.every(value => answer.includes(value)) && test.mustNotInclude.every(value => !answer.includes(value))
-    && (test.layout === 'any' || (test.layout === 'table' ? table : !table))
-}
-export function validateDraftGovernance(value: unknown, input?: ConversationDraftInput): ConversationDraftGovernance {
-  const result = governanceSchema.parse(value)
-  if (Buffer.byteLength(JSON.stringify(result)) > 32_000
-    || new Set(result.cases.map(c => c.id)).size !== 4
-    || new Set(result.cases.map(c => c.input.trim())).size !== 4
-    || result.cases.filter(c => c.partition === 'holdout').length !== 2) throw new Error('invalid independent test partitions')
-  for (const test of result.cases) {
-    if (!matchesDraftCase(test.referenceAnswer, test) || matchesDraftCase(test.negativeAnswer, test)) {
-      throw new Error('draft test calibration failed')
-    }
-    if (input !== undefined && Object.values(input.messages).some(text => text.trim().length >= 8 && test.input.includes(text.trim()))) {
-      throw new Error('draft test copied source interaction')
-    }
-  }
-  if (input !== undefined) requireDraftCaseCalibration(result)
-  return result
-}
-
-/** Admission self-consistency only, not semantic correctness or independent task-effect proof. */
-export function requireDraftCaseCalibration(governance: ConversationDraftGovernance): void {
-  if (governance.cases.some(test => test.alternateAnswer === undefined || !matchesDraftCase(test.alternateAnswer, test))) {
-    throw new Error('draft alternate-answer calibration failed')
   }
 }
 
@@ -124,33 +88,33 @@ const usageSchema = z.strictObject({ inputTokens: INT, outputTokens: INT, cacheR
 const responseTimingSchema = z.strictObject({ elapsedMs: INT, firstChunkMs: INT.optional(), chunkCount: INT })
   .refine(t => (t.firstChunkMs === undefined) === (t.chunkCount === 0)
     && (t.firstChunkMs === undefined || t.firstChunkMs <= t.elapsedMs), 'invalid response timing')
-const recordSchema = z.strictObject({
+const recordBaseSchema = z.strictObject({
   schemaVersion: z.literal(1), id: HASH, workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
   correctionId: HASH, sourceDigest: HASH, sourceSessionId: z.string().min(1).max(256), sourceTurn: INT.positive(),
   sourceAnswerSeq: INT.optional(), messageFeedbackSource: explicitFeedbackSourceSchema.optional(),
   retryOf: HASH.optional(),
-  inputDigest: HASH, reservedAt: INT.max(8_640_000_000_000_000), reservedModelCalls: z.literal(2),
-  phase: z.enum(['reserved', 'governance-pending', 'governance-ready', 'authoring-pending', 'draft', 'abstained', 'uncertain']),
-  modelCalls: z.number().int().min(0).max(2),
+  testPreparation: z.literal('staged-v1').optional(), preparationSteps: preparationStepsSchema.optional(),
+  preparationInheritedCount: z.number().int().min(0).max(8).optional(), previousInputDigest: HASH.optional(),
+  inputDigest: HASH, reservedAt: INT.max(8_640_000_000_000_000), reservedModelCalls: z.number().int().min(1).max(9),
+  phase: z.enum(['reserved', 'governance-pending', 'governance-preparing', 'governance-ready', 'authoring-pending', 'draft', 'abstained', 'uncertain']),
+  modelCalls: z.number().int().min(0).max(9),
   governance: governanceSchema.optional(), governanceDigest: HASH.optional(),
-  draft: draftSchema.optional(), usages: z.array(usageSchema).max(2),
-  requestTimings: z.array(z.strictObject({ role: z.enum(['governance', 'author']), timing: responseTimingSchema })).max(2).optional(),
+  draft: draftSchema.optional(), usages: z.array(usageSchema).max(9),
+  requestTimings: z.array(z.strictObject({ role: z.enum(['governance', 'author']), requestIndex: z.number().int().min(0).max(8).optional(), timing: responseTimingSchema })).max(9).optional(),
   reason: z.enum(['interrupted', 'cancelled', 'invalid-governance', 'invalid-draft', 'not-generalizable', 'model-request-failed', 'source-conflict',
     'provider-error', 'provider-aborted', 'model-timeout', 'model-idle-timeout', 'model-total-timeout',
     'output-limit', 'invalid-json', 'invalid-stream', 'tool-output']).optional(),
-}).superRefine((r, ctx) => {
+})
+const recordSchema = recordBaseSchema.superRefine((r, ctx) => {
   const invalid = r.id !== draftId(r.workspaceId, r.correctionId, r.retryOf)
     || (r.governance !== undefined) !== (r.governanceDigest !== undefined)
     || (r.governance !== undefined && r.governanceDigest !== digest(r.governance))
     || (r.phase === 'draft') !== (r.draft !== undefined)
     || (r.draft !== undefined && r.draft.contentHash !== textHash(r.draft.markdown))
     || (r.phase === 'reserved' && r.modelCalls !== 0)
-    || (['governance-pending', 'governance-ready'].includes(r.phase) && r.modelCalls !== 1)
-    || (['authoring-pending', 'draft'].includes(r.phase) && (r.modelCalls !== 2 || r.governance === undefined))
+    || !draftPreparationStateValid(r)
     || (['abstained', 'uncertain'].includes(r.phase) !== (r.reason !== undefined))
     || r.usages.length > r.modelCalls
-    || (r.requestTimings !== undefined && (new Set(r.requestTimings.map(t => t.role)).size !== r.requestTimings.length
-      || r.requestTimings.some(t => r.modelCalls < (t.role === 'governance' ? 1 : 2))))
     || (r.messageFeedbackSource !== undefined && (r.correctionId !== explicitFeedbackId(r.messageFeedbackSource)
       || r.sourceDigest !== digest(r.messageFeedbackSource) || r.workspaceId !== r.messageFeedbackSource.workspaceId
       || r.sourceSessionId !== r.messageFeedbackSource.sessionId || r.sourceTurn !== r.messageFeedbackSource.turn
@@ -158,14 +122,42 @@ const recordSchema = z.strictObject({
   if (invalid) ctx.addIssue({ code: 'custom', message: 'conversation draft identity or state is inconsistent' })
 })
 export type ConversationDraftRecord = z.infer<typeof recordSchema>
+
+function draftPreparationStateValid(r: z.infer<typeof recordBaseSchema>): boolean {
+  if (r.testPreparation === undefined) return r.reservedModelCalls === 2 && r.modelCalls <= 2
+    && r.preparationSteps === undefined && r.preparationInheritedCount === undefined && r.previousInputDigest === undefined
+    && r.phase !== 'governance-preparing'
+    && (!['governance-pending', 'governance-ready'].includes(r.phase) || r.modelCalls === 1)
+    && (!['authoring-pending', 'draft'].includes(r.phase) || r.modelCalls === 2 && r.governance !== undefined)
+    && (r.requestTimings === undefined || new Set(r.requestTimings.map(t => t.role)).size === r.requestTimings.length
+      && r.requestTimings.every(t => t.requestIndex === undefined && r.modelCalls >= (t.role === 'governance' ? 1 : 2)))
+  const steps = r.preparationSteps, inherited = r.preparationInheritedCount
+  if (steps === undefined || inherited === undefined || steps.length < inherited
+    || r.retryOf === undefined && (inherited !== 0 || r.previousInputDigest !== undefined)
+    || r.reservedModelCalls !== 9 - inherited || r.modelCalls > r.reservedModelCalls) return false
+  const progress = inherited + r.modelCalls
+  if (steps.length > progress || steps.length < Math.min(8, progress - 1)
+    || (steps.length === 8) !== (r.governance !== undefined)) return false
+  try { if (r.governance !== undefined && digest(assembleDraftPreparation(steps)) !== digest(r.governance)) return false }
+  catch { return false }
+  if (r.phase === 'reserved' && steps.length !== inherited
+    || r.phase === 'governance-pending' && (progress < 1 || progress > 8 || steps.length !== progress - 1)
+    || r.phase === 'governance-preparing' && (progress < 1 || progress > 7 || steps.length !== progress)
+    || r.phase === 'governance-ready' && (progress !== 8 || steps.length !== 8)
+    || ['authoring-pending', 'draft'].includes(r.phase) && (progress !== 9 || steps.length !== 8)) return false
+  return r.requestTimings === undefined || new Set(r.requestTimings.map(t => t.requestIndex)).size === r.requestTimings.length
+    && r.requestTimings.every(t => t.requestIndex !== undefined && t.requestIndex < r.modelCalls
+      && t.role === (inherited + t.requestIndex < 8 ? 'governance' : 'author'))
+}
+
 const domainSpec = defineDomain({ name: 'evoforge_conversation_skill_drafts', version: 1, layout: 'single',
   tables: { records: domainTable<string, ConversationDraftRecord>(recordSchema) } })
 function draftId(workspaceId: string, correctionId: string, retryOf?: string): string {
   return digest({ kind: 'conversation-skill-draft-v1', workspaceId, correctionId, ...(retryOf === undefined ? {} : { retryOf }) })
 }
 function retryEligible(record: ConversationDraftRecord): boolean {
-  return record.phase === 'uncertain' && record.modelCalls <= 1
-    && record.governance === undefined && record.draft === undefined
+  return record.phase === 'uncertain' && record.draft === undefined
+    && (record.testPreparation === 'staged-v1' || record.modelCalls <= 1 && record.governance === undefined)
     && ['interrupted', 'cancelled', 'model-request-failed', 'provider-error', 'provider-aborted',
       'model-timeout', 'model-idle-timeout', 'model-total-timeout'].includes(record.reason ?? '')
 }
@@ -209,6 +201,7 @@ export class ConversationDraftStore {
       const child = table.get(id)
       if (child !== undefined) { parent = child; continue }
       const grant = policy.retryFailedDrafts?.find(g => g.draftId === parent.id)
+      if (parent.testPreparation !== undefined && parent.testPreparation !== policy.testPreparation) return undefined
       return grant !== undefined && grant.expiresAt > this.now() ? { id, parent } : undefined
     }
     return undefined
@@ -225,7 +218,7 @@ export class ConversationDraftStore {
         const target = this.retryTarget(policy, previous)
         if (target === undefined) return undefined
         previous = target.parent
-        if (previous.sourceDigest !== digest(correction.source) || previous.inputDigest !== draftInputDigest(input)) {
+        if (previous.sourceDigest !== digest(correction.source) || previous.inputDigest !== draftInputDigest(input, previous.testPreparation)) {
           this.warn(policy.workspaceId)
           return undefined
         }
@@ -235,22 +228,35 @@ export class ConversationDraftStore {
       const reservedAt = this.now()
       if (previous !== undefined && reservedAt < previous.reservedAt) { this.warn(policy.workspaceId); return undefined }
       const used = this.records(policy.workspaceId).filter(r => day(r.reservedAt) === day(reservedAt)).reduce((n, r) => n + r.reservedModelCalls, 0)
-      if (table.size >= MAX_RECORDS || used + 2 > policy.maxModelCallsPerUtcDay) { this.warn(policy.workspaceId); return undefined }
+      const staged = policy.testPreparation === 'staged-v1'
+      const inheritedSteps = staged && previous?.testPreparation === 'staged-v1' ? previous.preparationSteps! : []
+      const reservedModelCalls = staged ? 9 - inheritedSteps.length : 2
+      if (table.size >= MAX_RECORDS || used + reservedModelCalls > policy.maxModelCallsPerUtcDay) { this.warn(policy.workspaceId); return undefined }
       const record = recordSchema.parse({ schemaVersion: 1, id, workspaceId: policy.workspaceId,
         correctionId: correction.id, sourceDigest: digest(correction.source), sourceSessionId: correction.source.sessionId,
-        sourceTurn: correction.source.turn, inputDigest: draftInputDigest(input), reservedAt, reservedModelCalls: 2,
+        sourceTurn: correction.source.turn, inputDigest: draftInputDigest(input, policy.testPreparation), reservedAt, reservedModelCalls,
         sourceAnswerSeq: draftOriginAnswerSeq(correction),
         ...(isExplicitFeedbackOrigin(correction) ? { messageFeedbackSource: correction.source } : {}),
         ...(retryOf === undefined ? {} : { retryOf }),
+        ...(staged ? { testPreparation: 'staged-v1', preparationSteps: inheritedSteps, preparationInheritedCount: inheritedSteps.length,
+          ...(previous !== undefined && previous.testPreparation === undefined ? { previousInputDigest: previous.inputDigest } : {}),
+          ...(inheritedSteps.length === 8 ? { governance: previous!.governance, governanceDigest: previous!.governanceDigest } : {}),
+        } : {}),
         phase: 'reserved', modelCalls: 0, usages: [] })
       await this.put(record)
       return structuredClone(record)
     })
   }
-  update(record: ConversationDraftRecord, patch: Partial<Pick<ConversationDraftRecord, 'phase' | 'modelCalls' | 'governance' | 'governanceDigest' | 'draft' | 'usages' | 'reason' | 'requestTimings'>>): Promise<ConversationDraftRecord> {
+  update(record: ConversationDraftRecord, patch: Partial<Pick<ConversationDraftRecord, 'phase' | 'modelCalls' | 'governance' | 'governanceDigest' | 'draft' | 'usages' | 'reason' | 'requestTimings' | 'preparationSteps'>>): Promise<ConversationDraftRecord> {
     return this.enqueue(async () => {
       if (digest(this.domain.table('records').get(record.id)) !== digest(record)) throw new Error('conversation draft changed during work')
       const next = recordSchema.parse({ ...record, ...patch })
+      if (record.governance !== undefined && digest(next.governance) !== digest(record.governance)
+        || record.preparationSteps !== undefined && (next.preparationSteps === undefined
+          || next.preparationSteps.length < record.preparationSteps.length || next.preparationSteps.length > record.preparationSteps.length + 1
+          || digest(next.preparationSteps.slice(0, record.preparationSteps.length)) !== digest(record.preparationSteps))) {
+        throw new Error('sealed draft preparation cannot change')
+      }
       await this.put(next)
       return structuredClone(next)
     })
@@ -302,7 +308,7 @@ export async function openConversationDraftStore(facility: DomainFacility, polic
       if (r.retryOf === undefined) continue
       const parent = table.get(r.retryOf)
       if (parent === undefined || !retryEligible(parent) || parent.workspaceId !== r.workspaceId
-        || parent.correctionId !== r.correctionId || parent.sourceDigest !== r.sourceDigest || parent.inputDigest !== r.inputDigest
+        || parent.correctionId !== r.correctionId || parent.sourceDigest !== r.sourceDigest || !retryPreparationMatches(parent, r)
         || parent.sourceSessionId !== r.sourceSessionId || parent.sourceTurn !== r.sourceTurn || parent.reservedAt > r.reservedAt) {
         throw new Error('conversation draft retry lineage is inconsistent')
       }
@@ -316,8 +322,21 @@ export async function openConversationDraftStore(facility: DomainFacility, polic
   } catch (error) { await domain.close(); throw error }
 }
 
-export function draftInputDigest(input: ConversationDraftInput): string { return digest({ input, governanceSystem, authorSystem, governanceTokens: 4000, authorTokens: 2000 }) }
-export interface ConversationDraftModelRequest { readonly role: 'governance' | 'author'; readonly input: ConversationDraftInput }
+function retryPreparationMatches(parent: ConversationDraftRecord, child: ConversationDraftRecord): boolean {
+  if (parent.testPreparation === child.testPreparation) {
+    if (parent.inputDigest !== child.inputDigest || child.previousInputDigest !== undefined) return false
+  } else if (parent.testPreparation !== undefined || child.testPreparation !== 'staged-v1' || child.previousInputDigest !== parent.inputDigest) return false
+  if (child.testPreparation === undefined) return true
+  const inherited = parent.testPreparation === 'staged-v1' ? parent.preparationSteps! : []
+  return child.preparationInheritedCount === inherited.length
+    && digest(child.preparationSteps!.slice(0, inherited.length)) === digest(inherited)
+}
+
+export function draftInputDigest(input: ConversationDraftInput, preparation?: 'staged-v1'): string {
+  return digest(preparation === undefined ? { input, governanceSystem, authorSystem, governanceTokens: 4000, authorTokens: 2000 }
+    : { input, preparation, preparationDigest: STAGED_DRAFT_PREPARATION_DIGEST, authorSystem, governanceTokens: 4000, authorTokens: 2000 })
+}
+export interface ConversationDraftModelRequest { readonly role: 'governance' | 'author'; readonly input: ConversationDraftInput; readonly preparation?: StagedDraftRequest }
 export type ConversationDraftModel = (request: ConversationDraftModelRequest, signal: AbortSignal) => Promise<{
   readonly value: unknown; readonly usage?: TokenUsage; readonly timing?: z.infer<typeof responseTimingSchema>
 }>
@@ -330,7 +349,7 @@ class NativeDraftResponseError extends Error {
 }
 
 export function nativeConversationDraftModel(ctx: Pick<Context, 'llm'>): ConversationDraftModel {
-  return async ({ role, input }, signal) => {
+  return async ({ role, input, preparation }, signal) => {
     // Native adapters own transport liveness (including SSE heartbeats that do
     // not produce model chunks). A second content-idle watchdog preempts them.
     using limit = deadline(signal, 600_000, 'EVOFORGE_CONVERSATION_DRAFT_TOTAL_TIMEOUT')
@@ -343,9 +362,12 @@ export function nativeConversationDraftModel(ctx: Pick<Context, 'llm'>): Convers
       ...(firstChunkMs === undefined ? {} : { firstChunkMs }), chunkCount })
     try {
       limit.signal.throwIfAborted()
+      if (role === 'author' && preparation !== undefined) throw new NativeDraftResponseError('invalid-draft')
+      const prompt = preparation === undefined ? { system: role === 'governance' ? governanceSystem : authorSystem, content: JSON.stringify(input.messages) }
+        : stagedDraftPrompt(preparation, input)
       const iterator = ctx.llm.stream({ ...input.route, sessionId: input.source.sessionId as SessionId,
-        system: role === 'governance' ? governanceSystem : authorSystem, maxTokens: role === 'governance' ? 4000 : 2000,
-        messages: [createUserMessage({ source: { kind: 'plugin', plugin: 'dsh-evolve' }, content: [{ type: 'text', text: JSON.stringify(input.messages) }] })],
+        system: prompt.system, maxTokens: role === 'governance' ? 4000 : 2000,
+        messages: [createUserMessage({ source: { kind: 'plugin', plugin: 'dsh-evolve' }, content: [{ type: 'text', text: prompt.content }] })],
         signal: limit.signal,
       })[Symbol.asyncIterator]()
       let complete = false
@@ -415,17 +437,19 @@ export async function authorConversationSkillDraft(store: ConversationDraftStore
   if (!eligible || digest(correction.source) !== digest(input.source) || !await conversationSourceAvailable(sourceStillMatches, signal)) return 'skipped'
   let record = await store.reserve(correction, input, () => !signal.aborted)
   if (record === undefined) return 'skipped'
-  for (const role of ['governance', 'author'] as const) {
+  while (true) {
+    const role = record.governance === undefined ? 'governance' : 'author'
+    const preparation = role === 'governance' && record.testPreparation === 'staged-v1' ? nextDraftPreparation(record.preparationSteps!) : undefined
     if (signal.aborted) { await store.update(record, { phase: 'uncertain', reason: 'cancelled' }); return 'uncertain' }
     if (!await conversationSourceAvailable(sourceStillMatches, signal)) {
       await store.update(record, { phase: 'uncertain', reason: signal.aborted ? 'cancelled' : 'source-conflict' }); return 'uncertain'
     }
-    record = await store.update(record, { phase: role === 'governance' ? 'governance-pending' : 'authoring-pending', modelCalls: role === 'governance' ? 1 : 2 })
+    record = await store.update(record, { phase: role === 'governance' ? 'governance-pending' : 'authoring-pending', modelCalls: record.modelCalls + 1 })
     if (!await conversationSourceAvailable(sourceStillMatches, signal)) {
       await store.update(record, { phase: 'uncertain', reason: signal.aborted ? 'cancelled' : 'source-conflict' }); return 'uncertain'
     }
     let result: Awaited<ReturnType<ConversationDraftModel>>
-    try { result = await model({ role, input }, signal); signal.throwIfAborted() }
+    try { result = await model({ role, input, ...(preparation === undefined ? {} : { preparation }) }, signal); signal.throwIfAborted() }
     catch (error) {
       const reason = signal.aborted ? 'cancelled' : error instanceof NativeDraftResponseError ? error.reason : 'model-request-failed'
       let usages = record.usages
@@ -442,6 +466,17 @@ export async function authorConversationSkillDraft(store: ConversationDraftStore
       await store.update(record, { phase: 'uncertain', reason: signal.aborted ? 'cancelled' : 'source-conflict', usages }); return 'uncertain'
     }
     if (role === 'governance') {
+      if (record.testPreparation === 'staged-v1') {
+        let preparationSteps: NonNullable<ConversationDraftRecord['preparationSteps']>
+        let governance: ConversationDraftGovernance | undefined
+        try {
+          preparationSteps = appendDraftPreparation(record.preparationSteps!, result.value, input)
+          if (preparationSteps.length === 8) governance = validateDraftGovernance(assembleDraftPreparation(preparationSteps), input)
+        } catch { await store.update(record, { phase: 'abstained', reason: 'invalid-governance', usages }); return 'abstained' }
+        record = await store.update(record, { phase: governance === undefined ? 'governance-preparing' : 'governance-ready', preparationSteps, usages,
+          ...(governance === undefined ? {} : { governance, governanceDigest: digest(governance) }) })
+        continue
+      }
       let governance: ConversationDraftGovernance
       try { governance = validateDraftGovernance(result.value, input) }
       catch { await store.update(record, { phase: 'abstained', reason: 'invalid-governance', usages }); return 'abstained' }
@@ -455,11 +490,11 @@ export async function authorConversationSkillDraft(store: ConversationDraftStore
       return 'draft'
     }
   }
-  throw new Error('draft authoring did not reach a terminal state')
 }
 
 function retainTiming(record: ConversationDraftRecord, role: ConversationDraftModelRequest['role'], timing: z.infer<typeof responseTimingSchema> | undefined): Pick<ConversationDraftRecord, 'requestTimings'> {
-  return timing === undefined ? {} : { requestTimings: [...record.requestTimings ?? [], { role, timing: responseTimingSchema.parse(timing) }] }
+  return timing === undefined ? {} : { requestTimings: [...record.requestTimings ?? [], { role,
+    ...(record.testPreparation === undefined ? {} : { requestIndex: record.modelCalls - 1 }), timing: responseTimingSchema.parse(timing) }] }
 }
 
 function originPermitted(policy: ConversationLearningPolicy, origin: ConversationDraftOrigin): boolean {

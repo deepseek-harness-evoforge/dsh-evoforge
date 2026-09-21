@@ -126,6 +126,157 @@ describe('conversation-derived Skill draft', () => {
     expect(JSON.stringify(view)).not.toContain('甲事项')
   })
 
+  it('stages four fixed tasks and their calibration in eight durably counted requests before the isolated proposer', async () => {
+    const f = facility(), stagedPolicy = { ...policy, maxModelCallsPerUtcDay: 20, testPreparation: 'staged-v1' as const }
+    const store = await openConversationDraftStore(f.value, [stagedPolicy], () => 100)
+    const calls: unknown[] = []
+    const model = vi.fn(async request => {
+      const record = store.records(WORKSPACE_ID)[0]!
+      calls.push(request)
+      expect(record.modelCalls).toBe(calls.length)
+      expect(record.preparationSteps).toHaveLength(Math.min(calls.length - 1, 8))
+      if (request.role === 'author') {
+        expect(record.governance).toEqual(governance)
+        expect(request).toEqual({ role: 'author', input })
+        return { value: proposal, usage }
+      }
+      const step = request.preparation!
+      const test = governance.cases[step.index]!
+      if (step.kind === 'task') {
+        expect(step.partition).toBe(test.partition)
+        expect(JSON.stringify(request)).not.toContain('referenceAnswer')
+        return { value: { scope: governance.scope, input: test.input, referenceAnswer: test.referenceAnswer }, usage }
+      }
+      expect(step).toEqual({ kind: 'calibration', index: step.index, input: test.input, referenceAnswer: test.referenceAnswer })
+      return { value: { alternateAnswer: test.alternateAnswer, negativeAnswer: test.negativeAnswer,
+        mustInclude: test.mustInclude, mustNotInclude: test.mustNotInclude, layout: test.layout }, usage }
+    })
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('draft')
+    expect(model).toHaveBeenCalledTimes(9)
+    const record = store.records(WORKSPACE_ID)[0]!
+    expect(record).toMatchObject({ phase: 'draft', testPreparation: 'staged-v1', reservedModelCalls: 9, modelCalls: 9,
+      preparationInheritedCount: 0, governanceDigest: digest(governance) })
+    expect(record.usages).toHaveLength(9)
+    expect(store.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(9)
+    expect(JSON.stringify(store.summarize(WORKSPACE_ID))).not.toContain('referenceAnswer')
+    await store.close()
+    const cold = await openConversationDraftStore(f.value, [stagedPolicy], () => 200)
+    expect(cold.records(WORKSPACE_ID)).toEqual([record])
+    expect(await authorConversationSkillDraft(cold, correction, input, model, signal())).toBe('skipped')
+  })
+
+  it('resumes only the missing staged requests while retaining the original fixed tasks and failed call', async () => {
+    const f = facility(), stagedPolicy = { ...policy, maxModelCallsPerUtcDay: 20, testPreparation: 'staged-v1' as const }
+    const store = await openConversationDraftStore(f.value, [stagedPolicy], () => 100)
+    const interrupted = vi.fn(async request => {
+      const index = request.preparation!.index
+      if (index === 2) throw new Error('transport stopped before a response')
+      const test = governance.cases[index]!
+      return { value: { scope: governance.scope, input: test.input, referenceAnswer: test.referenceAnswer }, usage }
+    })
+    expect(await authorConversationSkillDraft(store, correction, input, interrupted, signal())).toBe('uncertain')
+    const original = store.records(WORKSPACE_ID)[0]!
+    expect(original).toMatchObject({ modelCalls: 3, reservedModelCalls: 9, reason: 'model-request-failed' })
+    expect(original.preparationSteps).toHaveLength(2)
+    await store.close()
+    const retryPolicy = { ...stagedPolicy, retryFailedDrafts: [{ draftId: original.id, expiresAt: 2000 }] }
+    const resumed = await openConversationDraftStore(f.value, [retryPolicy], () => 200)
+    const continued = vi.fn(async request => {
+      if (request.role === 'author') return { value: proposal, usage }
+      const step = request.preparation!, test = governance.cases[step.index]!
+      if (step.kind === 'task') {
+        expect(step.index).toBeGreaterThanOrEqual(2)
+        return { value: { scope: governance.scope, input: test.input, referenceAnswer: test.referenceAnswer }, usage }
+      }
+      return { value: { alternateAnswer: test.alternateAnswer, negativeAnswer: test.negativeAnswer,
+        mustInclude: test.mustInclude, mustNotInclude: test.mustNotInclude, layout: test.layout }, usage }
+    })
+    expect(await authorConversationSkillDraft(resumed, correction, input, continued, signal())).toBe('draft')
+    expect(continued).toHaveBeenCalledTimes(7)
+    const records = resumed.records(WORKSPACE_ID)
+    expect(records.find(r => r.id === original.id)).toEqual(original)
+    const child = records.find(r => r.retryOf === original.id)!
+    expect(child).toMatchObject({ modelCalls: 7, reservedModelCalls: 7, preparationInheritedCount: 2, phase: 'draft' })
+    expect(child.preparationSteps?.slice(0, 2)).toEqual(original.preparationSteps)
+    expect(child.governance).toEqual(governance)
+    expect(resumed.summarize(WORKSPACE_ID)).toMatchObject({ reservedModelCallsToday: 16, usageMissingCount: 1 })
+    await resumed.close()
+    const cold = await openConversationDraftStore(f.value, [retryPolicy], () => 300)
+    expect(cold.records(WORKSPACE_ID)).toEqual(records)
+    await cold.close()
+    f.rows.set(child.id, { ...child, preparationSteps: child.preparationSteps!.slice(1) })
+    await expect(openConversationDraftStore(f.value, [retryPolicy], () => 400)).rejects.toThrow()
+  })
+
+  it('can upgrade an exact pre-governance legacy failure to staged preparation without replacing its source or history', async () => {
+    const f = facility(), first = await openConversationDraftStore(f.value, [policy], () => 100)
+    await authorConversationSkillDraft(first, correction, input, async () => { throw new Error('transport') }, signal())
+    const original = first.records(WORKSPACE_ID)[0]!
+    await first.close()
+    const stagedPolicy = { ...policy, maxModelCallsPerUtcDay: 20, testPreparation: 'staged-v1' as const,
+      retryFailedDrafts: [{ draftId: original.id, expiresAt: 2000 }] }
+    const store = await openConversationDraftStore(f.value, [stagedPolicy], () => 200)
+    const reserved = await store.reserve(correction, input, () => true)
+    expect(reserved).toMatchObject({ retryOf: original.id, testPreparation: 'staged-v1', reservedModelCalls: 9, modelCalls: 0,
+      preparationInheritedCount: 0, preparationSteps: [] })
+    expect(reserved!.inputDigest).not.toBe(original.inputDigest)
+    expect(reserved!.sourceDigest).toBe(original.sourceDigest)
+    expect(store.records(WORKSPACE_ID).find(r => r.id === original.id)).toEqual(original)
+    await store.close()
+    const cold = await openConversationDraftStore(f.value, [stagedPolicy], () => 300)
+    expect(cold.records(WORKSPACE_ID).find(r => r.retryOf === original.id)).toMatchObject({ reason: 'interrupted' })
+  })
+
+  it('can recover only an unknown proposer response using its unchanged complete preparation and a single remaining reservation', async () => {
+    const f = facility(), stagedPolicy = { ...policy, maxModelCallsPerUtcDay: 10, testPreparation: 'staged-v1' as const }
+    const store = await openConversationDraftStore(f.value, [stagedPolicy], () => 100)
+    const model = vi.fn(async request => {
+      if (request.role === 'author') throw new Error('unknown author response')
+      const step = request.preparation!, test = governance.cases[step.index]!
+      return { value: step.kind === 'task' ? { scope: governance.scope, input: test.input, referenceAnswer: test.referenceAnswer }
+        : { alternateAnswer: test.alternateAnswer, negativeAnswer: test.negativeAnswer,
+          mustInclude: test.mustInclude, mustNotInclude: test.mustNotInclude, layout: test.layout }, usage }
+    })
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('uncertain')
+    const failed = store.records(WORKSPACE_ID)[0]!
+    expect(failed).toMatchObject({ modelCalls: 9, governance, reason: 'model-request-failed' })
+    await store.close()
+    const retryPolicy = { ...stagedPolicy, retryFailedDrafts: [{ draftId: failed.id, expiresAt: 2000 }] }
+    const resumed = await openConversationDraftStore(f.value, [retryPolicy], () => 200)
+    const proposer = vi.fn(async request => { expect(request).toEqual({ role: 'author', input }); return { value: proposal, usage } })
+    expect(await authorConversationSkillDraft(resumed, correction, input, proposer, signal())).toBe('draft')
+    expect(proposer).toHaveBeenCalledTimes(1)
+    const child = resumed.records(WORKSPACE_ID).find(r => r.retryOf === failed.id)!
+    expect(child).toMatchObject({ reservedModelCalls: 1, modelCalls: 1, preparationInheritedCount: 8, governance })
+    expect(resumed.summarize(WORKSPACE_ID)).toMatchObject({ reservedModelCallsToday: 10, usageMissingCount: 1 })
+    await resumed.close()
+    const cold = await openConversationDraftStore(f.value, [retryPolicy], () => 300)
+    expect(cold.records(WORKSPACE_ID)).toEqual([failed, child])
+  })
+
+  it.each(['copied-task', 'duplicate-task', 'invalid-calibration', 'source-withdrawn'] as const)('never redraws or proposes after %s in staged preparation', async failure => {
+    const f = facility(), stagedPolicy = { ...policy, maxModelCallsPerUtcDay: 20, testPreparation: 'staged-v1' as const }
+    const store = await openConversationDraftStore(f.value, [stagedPolicy], () => 100)
+    let current = true
+    const model = vi.fn(async request => {
+      expect(request.role).toBe('governance')
+      const step = request.preparation!, test = governance.cases[step.index]!
+      if (failure === 'source-withdrawn' && step.index === 1) current = false
+      if (step.kind === 'task') return { value: { scope: governance.scope,
+        input: failure === 'copied-task' ? input.messages.correction : failure === 'duplicate-task' ? governance.cases[0]!.input : test.input,
+        referenceAnswer: test.referenceAnswer }, usage }
+      return { value: { alternateAnswer: 'bad positive', negativeAnswer: test.negativeAnswer,
+        mustInclude: test.mustInclude, mustNotInclude: test.mustNotInclude, layout: test.layout }, usage }
+    })
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal(), () => current))
+      .toBe(failure === 'source-withdrawn' ? 'uncertain' : 'abstained')
+    const failed = store.records(WORKSPACE_ID)[0]!
+    expect(failed.draft).toBeUndefined()
+    expect(failed.governance).toBeUndefined()
+    await store.close()
+    await expect(openConversationDraftStore(f.value, [{ ...stagedPolicy, retryFailedDrafts: [{ draftId: failed.id, expiresAt: 2000 }] }], () => 200)).rejects.toThrow('retry grant')
+  })
+
   it('does not consume policy, unclear interpretation, or mismatched source as authoring permission', async () => {
     const model = vi.fn()
     const store = await openConversationDraftStore(facility().value, [], () => 100)

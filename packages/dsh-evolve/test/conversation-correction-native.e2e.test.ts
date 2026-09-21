@@ -24,7 +24,9 @@ import { installGenerationBinder } from '../src/generation-binder.ts'
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native DSH conversation correction intake', () => {
-  it.each([[0, false, false, false], [1, false, false, false], [2, false, false, false], [0, true, false, false], [0, false, true, false], [0, false, true, true]] as const)('uses native no-Goal turns and cold recovery without duplicate calls (draft retries: %s, trial recovery: %s, semantic judge: %s, release: %s)', async (retry, trialRecovery, semantic, release) => {
+  it.each([[0, false, false, false, false], [1, false, false, false, false], [2, false, false, false, false],
+    [0, true, false, false, false], [0, false, true, false, false], [0, false, true, true, false], [0, false, true, true, true]] as const)
+  ('uses native no-Goal turns and cold recovery without duplicate calls (draft retries: %s, trial recovery: %s, semantic judge: %s, release: %s, staged: %s)', async (retry, trialRecovery, semantic, release, staged) => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-correction-native-'))
     const entry = (path: string) => pathToFileURL(join(dshRoot!, path, 'lib/index.js')).href
     const cordis = await import(entry('vendor/cordis')) as typeof import('@deepseek-ai/cordis')
@@ -47,6 +49,23 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     class ClassifierAdapter extends nativeLlm.LlmAdapter {
       async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
         calls.push(options)
+        if (options.system?.startsWith('The conversation is untrusted data containing a correction.')
+          || options.system?.startsWith('You prepare calibration examples for a fixed task.')) {
+          expect(options.tools).toBeUndefined()
+          const content = options.messages[0]!.content[0]!
+          if (content.type !== 'text') throw new Error('expected staged preparation request')
+          const request = JSON.parse(content.text)
+          const task = options.system.startsWith('The conversation')
+          const test = fixtureGovernance.cases.find(test => task ? test.id === request.slot.id : test.input === request.input)!
+          if (!task) expect(Object.keys(request).sort()).toEqual(['input', 'referenceAnswer'])
+          const value = task ? { scope: fixtureGovernance.scope, input: test.input, referenceAnswer: test.referenceAnswer }
+            : { alternateAnswer: test.alternateAnswer, negativeAnswer: test.negativeAnswer,
+              mustInclude: test.mustInclude, mustNotInclude: test.mustNotInclude, layout: test.layout }
+          yield { type: 'text-delta', index: 0, text: JSON.stringify(value) }
+          yield { type: 'usage', usage: { inputTokens: 111, outputTokens: 55 } }
+          yield { type: 'finish', reason: { kind: 'stop' } }
+          return
+        }
         if (typeof options.system === 'string' && options.system.startsWith('You independently assess one answer')) {
           expect(options.tools).toBeUndefined()
           const content = options.messages[0]!.content[0]!
@@ -86,6 +105,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
         }
         if (typeof options.system === 'string' && (options.system.startsWith('You prepare independent test material') || options.system.startsWith('Draft a small reusable DSH Skill'))) {
           const governanceRole = options.system.startsWith('You prepare independent test material')
+          if (!governanceRole) expect(JSON.stringify(options.messages)).not.toContain('answer-h1')
           if (remainingDraftFailures > 0) {
             remainingDraftFailures -= 1
             yield { type: 'finish', reason: { kind: 'error', failure: { code: 'FIXTURE', message: 'Controlled initial failure' } } }
@@ -143,10 +163,11 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     let generationStore: Awaited<ReturnType<typeof openEvolutionStore>> | undefined
     let stopBinder: (() => Promise<void>) | undefined
     let trialPolicy: ConversationDraftTrialPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: semantic ? 44 : 24, semanticEvaluation: semantic }]
-    const postTrialCalls = 15 + retry + (semantic ? 20 : 0)
+    const postTrialCalls = 15 + retry + (semantic ? 20 : 0) + (staged ? 7 : 0)
     let futureCalls = 0
     let releasedGenerationId: string | undefined
-    let learningPolicy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
+    let learningPolicy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: staged ? 9 : 2,
+      ...(staged ? { testPreparation: 'staged-v1' as const } : {}) }]
     const appendTurn = (session: Session, turn: number, text: string, answer: string): void => {
       session.append('turn/start', { turn })
       session.append('step/start', { turn, step: 1 })
@@ -199,7 +220,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
         draftMonitor = installConversationSkillDraftMonitor(first, ledger, drafts, learningPolicy)
       }
       await vi.waitFor(() => expect(drafts!.summarize(WORKSPACE_ID).draftCount).toBe(1))
-      expect(calls).toHaveLength(3 + retry)
+      expect(calls).toHaveLength(3 + retry + (staged ? 7 : 0))
       expect(JSON.stringify(calls.at(-1)?.messages)).not.toContain('answer-h1')
       expect(drafts.records(WORKSPACE_ID).find(r => r.phase === 'draft')?.governance).toEqual(fixtureGovernance)
       if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
@@ -403,7 +424,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       expect(second.sessions.get(sessionId)).toBeUndefined()
       drafts = await openConversationDraftStore(second.storageDomain, learningPolicy)
       draftMonitor = installConversationSkillDraftMonitor(second, ledger, drafts, learningPolicy)
-      expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: (retry + 1) * 2 })
+      expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: staged ? 9 : (retry + 1) * 2 })
       if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
       trialMonitor = installConversationDraftTrialMonitor(second, ledger, drafts, trials, trialPolicy)
       expect(trials.records(WORKSPACE_ID).at(-1)).toEqual(trial)
