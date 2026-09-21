@@ -1,0 +1,9 @@
+name: fw1-file-guard
+version: 1.0.0
+description: Isolated benchmark path policy and native execution observations
+provides_hooks:
+  - pre_tool_call
+  - post_tool_call
+  - pre_api_request
+  - post_api_request
+  - api_request_error
